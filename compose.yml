@@ -1,0 +1,23 @@
+services:
+  db:
+    image: mysql
+    container_name: db
+    hostname: db
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_DATABASE=audit
+      - MYSQL_ROOT_PASSWORD=atnad
+    networks:
+      db_net:
+        ipv4_address: 172.20.0.2
+    volumes:
+      - ./my.cnf:/etc/my.cnf
+      - ./create.sql:/docker-entrypoint-initdb.d/a.sql
+
+networks:
+  db_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.20.0.0/24"

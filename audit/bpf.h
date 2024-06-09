@@ -24,6 +24,8 @@ class Bpf {
   ~Bpf();
   int Poll(int time_nsec);
   bool Run();
+  void SetFileIncludePaths(std::vector<std::string>&& files_include);
+  void SetFileExcludePaths(std::vector<std::string>&& files_exclude);
 
  private:
   static int SetuidHandle(void* ctx, void* data, size_t data_sz);
@@ -35,6 +37,8 @@ class Bpf {
 
   static AuditDataBase db_;
   static bool run_;
+  static std::vector<std::string> file_include_paths_;
+  static std::vector<std::string> file_exclude_paths_;
   struct audit_bpf* skel_{nullptr};
   struct ring_buffer* setuid_rb_{nullptr};
   struct ring_buffer* file_rb_{nullptr};

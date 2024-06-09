@@ -10,7 +10,7 @@
 enum tcp_version_t { IPV4, IPV6 };
 enum tcp_operation_t { CONNECT, ACCEPT };
 
-struct tcp_info_t {
+struct tcp_data_t {
   char comm[TASK_COMM_LEN];
   uint64_t time_nsec;
   uid_t uid;
@@ -20,7 +20,7 @@ struct tcp_info_t {
 };
 
 struct tcp_v4_data_t {
-  struct tcp_info_t data;
+  struct tcp_data_t data;
   uint32_t saddr;
   uint32_t daddr;
   uint16_t lport;
@@ -28,7 +28,7 @@ struct tcp_v4_data_t {
 };
 
 struct tcp_v6_data_t {
-  struct tcp_info_t data;
+  struct tcp_data_t data;
   uint8_t saddr[16];
   uint8_t daddr[16];
   uint16_t lport;

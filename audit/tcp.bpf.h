@@ -7,7 +7,7 @@ struct {
   __uint(type, BPF_MAP_TYPE_HASH);
   __uint(max_entries, 8192);
   __type(key, struct sock*);
-  __type(value, struct tcp_info_t);
+  __type(value, struct tcp_data_t);
 } tcp_hash SEC(".maps");
 
 struct {
@@ -16,7 +16,7 @@ struct {
 } tcp_rb SEC(".maps");
 
 static __always_inline
-int fill_tcp_info(struct tcp_info_t* data, struct sock* sk,
+int fill_tcp_info(struct tcp_data_t* data, struct sock* sk,
                   enum tcp_version_t version, enum tcp_operation_t operation) {
   data->version = version;
   data->operation = operation;
@@ -29,7 +29,7 @@ int fill_tcp_info(struct tcp_info_t* data, struct sock* sk,
 
 SEC("kprobe/tcp_v4_connect")
 int BPF_KPROBE(tcp_v4_connect, struct sock* sk) {
-  struct tcp_info_t data;
+  struct tcp_data_t data;
   fill_tcp_info(&data, sk, IPV4, CONNECT);
   bpf_map_update_elem(&tcp_hash, &sk, &data, 0);
   return 0;
@@ -37,7 +37,7 @@ int BPF_KPROBE(tcp_v4_connect, struct sock* sk) {
 
 SEC("kprobe/tcp_v6_connect")
 int BPF_KPROBE(tcp_v6_connect, struct sock* sk) {
-  struct tcp_info_t data;
+  struct tcp_data_t data;
   fill_tcp_info(&data, sk, IPV6, CONNECT);
   bpf_map_update_elem(&tcp_hash, &sk, &data, 0);
   return 0;
@@ -81,7 +81,7 @@ int fill_tcp_v6_data(struct tcp_v6_data_t* tcp_v6, struct sock* sk) {
 SEC("kprobe/tcp_rcv_state_process")
 int BPF_KPROBE(tcp_rcv_state_process, struct sock* sk) {
   if (BPF_CORE_READ(sk, __sk_common.skc_state) != TCP_SYN_SENT) return 0;
-  struct tcp_info_t* data = bpf_map_lookup_elem(&tcp_hash, &sk);
+  struct tcp_data_t* data = bpf_map_lookup_elem(&tcp_hash, &sk);
   if (!data) return 0;
   if (data->version == IPV4) {
     struct tcp_v4_data_t* tcp_v4 =

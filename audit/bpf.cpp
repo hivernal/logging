@@ -11,6 +11,8 @@ namespace audit {
 
 AuditDataBase Bpf::db_;
 bool Bpf::run_ = true;
+std::vector<std::string> Bpf::file_include_paths_;
+std::vector<std::string> Bpf::file_exclude_paths_{"/dev/null"};
 
 const char* kCreateRingBufferError{"Failed to open and load BPF skeleton"};
 const char* kUnlockMemoryError{"Failed to unlock memory limit"};
@@ -101,24 +103,48 @@ Bpf::~Bpf() {
   audit_bpf__destroy(skel_);
 }
 
+void Bpf::SigHandle(int sig) { run_ = false; }
+
+int Bpf::Poll(int time_nsec) {
+  int err = ring_buffer__poll(setuid_rb_, time_nsec);
+  err = ring_buffer__poll(execve_rb_, time_nsec);
+  err = ring_buffer__poll(exit_rb_, time_nsec);
+  err = ring_buffer__poll(tcp_rb_, time_nsec);
+  err = ring_buffer__poll(file_rb_, time_nsec);
+  return err;
+}
+
+bool Bpf::Run() { return run_; }
+
+void Bpf::SetFileIncludePaths(std::vector<std::string>&& file_include) {
+  if (file_include.size()) {
+    file_include_paths_ = std::move(file_include);
+  }
+}
+void Bpf::SetFileExcludePaths(std::vector<std::string>&& file_exclude) {
+  if (file_exclude.size()) {
+    file_exclude_paths_ = std::move(file_exclude);
+  }
+}
+
 int Bpf::SetuidHandle([[maybe_unused]] void* ctx, void* data,
                       [[maybe_unused]] size_t data_sz) {
-  auto event{static_cast<const struct setuid_data_t*>(data)};
-  db_.AddSetuid(event);
+  auto setuid{static_cast<const struct setuid_data_t*>(data)};
+  db_.AddSetuid(setuid);
   return 0;
 }
 
 int Bpf::ExecveHandle([[maybe_unused]] void* ctx, void* data,
                       [[maybe_unused]] size_t data_sz) {
-  auto event{static_cast<const struct execve_data_t*>(data)};
-  db_.AddExecve(event);
+  auto execve{static_cast<const struct execve_data_t*>(data)};
+  db_.AddExecve(execve);
   return 0;
 }
 
 int Bpf::ExitHandle([[maybe_unused]] void* ctx, void* data,
                     [[maybe_unused]] size_t data_sz) {
-  auto event{static_cast<const struct exit_data_t*>(data)};
-  db_.AddExit(event);
+  auto exit{static_cast<const struct exit_data_t*>(data)};
+  db_.AddExit(exit);
   return 0;
 }
 
@@ -131,7 +157,7 @@ bool IsRelative(const char* path) {
 
 char* ChmodToChar(mode_t mode) {
   constexpr int chmod_str_size{10};
-  char* chmod_str = new char[chmod_str_size];
+  char* chmod_str{new char[chmod_str_size]};
   if (!chmod_str) return nullptr;
   enum FileFlags {
     kRead = 0400,
@@ -190,13 +216,30 @@ char* ChownToChar(uid_t uid, gid_t gid) {
   return chown_str;
 }
 
+bool ExcludePath(const std::vector<std::string>& file_include_paths,
+                 const std::vector<std::string>& file_exclude_paths,
+                 const std::string& pathname) {
+  for (const auto& path : file_exclude_paths) {
+    if (pathname.find(path) != std::string::npos) {
+      return true;
+    }
+  }
+  for (const auto& path : file_include_paths) {
+    if (pathname.find(path) != std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
 int Bpf::FileHandle([[maybe_unused]] void* ctx, void* data,
                     [[maybe_unused]] size_t data_sz) {
-  auto file{static_cast<struct file_data_t*>(data)};
+  auto file{static_cast<const struct file_data_t*>(data)};
   char buffer[PATH_MAX];
-  char* filename{IsRelative(file->filename)
-                     ? (realpath(file->filename, buffer), buffer)
-                     : file->filename};
+  const char* filename{IsRelative(file->filename)
+                           ? (realpath(file->filename, buffer), buffer)
+                           : file->filename};
+  if (ExcludePath(file_include_paths_, file_exclude_paths_, filename)) return 0;
   std::string operation{};
   char* argv{nullptr};
   switch (file->operation) {
@@ -211,26 +254,34 @@ int Bpf::FileHandle([[maybe_unused]] void* ctx, void* data,
       break;
     case RENAME: {
       operation = "rename";
-      auto rename{static_cast<struct rename_data_t*>(data)};
+      auto rename{static_cast<const struct rename_data_t*>(data)};
       if (IsRelative(rename->new_filename + rename->offset)) {
         char* buffer{new char[PATH_MAX]};
         realpath(rename->new_filename, buffer);
         argv = buffer;
+        if (ExcludePath(file_include_paths_, file_exclude_paths_, argv)) {
+          delete argv;
+          return 0;
+        }
         break;
       } else {
+        if (ExcludePath(file_include_paths_, file_exclude_paths_,
+                        rename->new_filename)) {
+          return 0;
+        }
         db_.AddFile(operation, file, filename, rename->new_filename);
         return 0;
       }
     }
     case CHOWN: {
       operation = "chown";
-      auto chown{static_cast<struct chown_data_t*>(data)};
+      auto chown{static_cast<const struct chown_data_t*>(data)};
       argv = ChownToChar(chown->setuid, chown->setgid);
       break;
     }
     case CHMOD: {
       operation = "chmod";
-      auto chmod{static_cast<struct chmod_data_t*>(data)};
+      auto chmod{static_cast<const struct chmod_data_t*>(data)};
       argv = ChmodToChar(chmod->mode);
       break;
     }
@@ -268,7 +319,7 @@ std::string IpV6ToHex(const std::uint8_t ipv6[16]) {
 
 int Bpf::TcpHandle([[maybe_unused]] void* ctx, void* data,
                    [[maybe_unused]] size_t data_sz) {
-  auto tcp{static_cast<const struct tcp_info_t*>(data)};
+  auto tcp{static_cast<const struct tcp_data_t*>(data)};
   std::string operation{};
   switch (tcp->operation) {
     case ACCEPT:
@@ -294,18 +345,5 @@ int Bpf::TcpHandle([[maybe_unused]] void* ctx, void* data,
   }
   return 0;
 }
-
-void Bpf::SigHandle(int sig) { run_ = false; }
-
-int Bpf::Poll(int time_nsec) {
-  int err = ring_buffer__poll(setuid_rb_, time_nsec);
-  err = ring_buffer__poll(execve_rb_, time_nsec);
-  err = ring_buffer__poll(exit_rb_, time_nsec);
-  err = ring_buffer__poll(tcp_rb_, time_nsec);
-  err = ring_buffer__poll(file_rb_, time_nsec);
-  return err;
-}
-
-bool Bpf::Run() { return run_; }
 
 }  // namespace audit

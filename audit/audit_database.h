@@ -29,7 +29,7 @@ class AuditDataBase : public DataBase {
   void AddExit(const struct exit_data_t* data);
   void AddFile(const std::string& operation, const struct file_data_t* file,
                const char* filename, const char* argv);
-  void AddTcp(const std::string& operation, const struct tcp_info_t* tcp,
+  void AddTcp(const std::string& operation, const struct tcp_data_t* tcp,
               const std::string& source_ip, std::uint16_t source_port,
               const std::string& dest_ip, std::uint16_t dest_port);
 

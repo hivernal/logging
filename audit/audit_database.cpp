@@ -363,66 +363,77 @@ void AuditDataBase::AddUsersGroups(const UsersGroupsInfo& local_info,
 std::uint32_t AuditDataBase::HostID() { return kHostID; }
 
 void AuditDataBase::AddSetuid(const struct setuid_data_t* data) {
-  std::ostringstream query{};
-  query << "insert into audit.setuid values(" << data->time_nsec << ','
-        << kHostID << ',' << data->uid << ',' << data->setuid << ','
-        << data->pid << ",'" << data->comm << "'," << data->ret << ')';
-  Execute(query.str());
+  auto prstmt{
+      PreparedStatement("insert into audit.setuid values(?,?,?,?,?,?,?)")};
+  prstmt->setUInt64(1, data->time_nsec);
+  prstmt->setUInt(2, kHostID);
+  prstmt->setUInt(3, data->uid);
+  prstmt->setUInt(4, data->setuid);
+  prstmt->setInt(5, data->pid);
+  prstmt->setString(6, data->comm);
+  prstmt->setInt(7, data->ret);
 }
 
 void AuditDataBase::AddExecve(const struct execve_data_t* data) {
-  std::ostringstream query{};
-  query << "insert into audit.execve values(" << data->time_nsec << ','
-        << kHostID << ',' << data->uid << ',' << data->pid << ',' << data->ppid
-        << ",'" << data->pwd << "','" << data->comm << "','" << data->argv
-        << "')";
-  try {
-    Execute(query.str());
-  } catch (const sql::SQLException& e) {
-    std::cerr << "Error in AddExecve()\n";
-    throw;
+  auto prstmt{
+      PreparedStatement("insert into audit.execve values(?,?,?,?,?,?,?,?)")};
+  prstmt->setUInt64(1, data->time_nsec);
+  prstmt->setUInt(2, kHostID);
+  prstmt->setUInt(3, data->uid);
+  prstmt->setInt(4, data->pid);
+  prstmt->setInt(5, data->ppid);
+  prstmt->setString(6, data->pwd);
+  prstmt->setString(7, data->comm);
+  if (data->argv[0]) {
+    prstmt->setString(8, data->argv);
+  } else {
+    prstmt->setNull(8, 0);
   }
+  prstmt->execute();
 }
 
 void AuditDataBase::AddExit(const struct exit_data_t* data) {
-  std::ostringstream query{};
-  query << "insert into audit.exit values(" << data->time_nsec << ',' << kHostID
-        << ',' << data->uid << ',' << data->pid << ",'" << data->comm << "',"
-        << data->code << ')';
-  Execute(query.str());
+  auto prstmt{PreparedStatement("insert into audit.exit values(?,?,?,?,?,?)")};
+  prstmt->setUInt64(1, data->time_nsec);
+  prstmt->setUInt(2, kHostID);
+  prstmt->setUInt(3, data->uid);
+  prstmt->setInt(4, data->pid);
+  prstmt->setString(5, data->comm);
+  prstmt->setInt(6, data->code);
+  prstmt->execute();
 }
 
 void AuditDataBase::AddFile(const std::string& operation,
-                            const struct file_data_t* file,
+                            const struct file_data_t* data,
                             const char* filename, const char* argv) {
-  std::ostringstream query{};
-  query << "insert into audit.files values(" << file->time_nsec << ",'"
-        << operation << "'," << kHostID << ',' << file->uid << ',' << file->pid
-        << ",'" << file->comm << "','" << filename;
+  auto prstmt{
+      PreparedStatement("insert into audit.files values(?,?,?,?,?,?,?,?,?)")};
+  prstmt->setUInt64(1, data->time_nsec);
+  prstmt->setString(2, operation);
+  prstmt->setUInt(3, kHostID);
+  prstmt->setUInt(4, data->uid);
+  prstmt->setInt(5, data->pid);
+  prstmt->setString(6, data->comm);
+  prstmt->setString(7, filename);
   if (argv) {
-    query << "','" << argv << "',";
+    prstmt->setString(8, argv);
   } else {
-    query << "',NULL,";
+    prstmt->setNull(8, 0);
   }
-  query << file->ret << ')';
-  try {
-    Execute(query.str());
-  } catch (const sql::SQLException& e) {
-    std::cerr << "Error in AddFile()\n";
-    throw;
-  }
+  prstmt->setInt(9, data->ret);
+  prstmt->execute();
 }
 
 void AuditDataBase::AddTcp(const std::string& operation,
-                           const struct tcp_info_t* tcp,
+                           const struct tcp_data_t* data,
                            const std::string& source_ip,
                            std::uint16_t source_port,
                            const std::string& dest_ip,
                            std::uint16_t dest_port) {
   std::ostringstream query{};
-  query << "insert into audit.tcp values(" << tcp->time_nsec << ",'"
-        << operation << "'," << kHostID << ',' << tcp->uid << ',' << tcp->pid
-        << ",'" << tcp->comm << "'," << source_ip << ',' << source_port << ','
+  query << "insert into audit.tcp values(" << data->time_nsec << ",'"
+        << operation << "'," << kHostID << ',' << data->uid << ',' << data->pid
+        << ",'" << data->comm << "'," << source_ip << ',' << source_port << ','
         << dest_ip << ',' << dest_port << ')';
   Execute(query.str());
 }

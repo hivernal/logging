@@ -46,10 +46,10 @@ std::vector<HostIP> GetHostIPs() {
   for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
     if (ifa->ifa_addr && ifa->ifa_netmask && ifa->ifa_name &&
         ifa->ifa_addr->sa_family == AF_INET) {
-      struct sockaddr_in* sockaddr = (struct sockaddr_in*)ifa->ifa_addr;
+      auto sockaddr{reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)};
       std::uint32_t ip{sockaddr->sin_addr.s_addr};
       if ((ip & localhost) == localhost) continue;
-      sockaddr = (struct sockaddr_in*)ifa->ifa_netmask;
+      sockaddr = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_netmask);
       std::uint32_t netmask{sockaddr->sin_addr.s_addr};
       ifas_info.push_back({htonl(ip), htonl(netmask), ifa->ifa_name});
     }
@@ -130,17 +130,19 @@ void AuditDataBase::AddHost() {
 AuditDataBase::UsersGroupsInfo AuditDataBase::GetLocalUsersGroupsInfo() {
   UsersGroupsInfo local_users_info{};
   while (true) {
-    const struct passwd* pw = getpwent();
+    const struct passwd* pw{getpwent()};
     if (!pw) {
       break;
     }
     local_users_info.users[pw->pw_uid].name = pw->pw_name;
-    int ngroups{0};
-    getgrouplist(pw->pw_name, pw->pw_gid, nullptr, &ngroups);
-    gid_t groups[ngroups];
-    getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);
-    for (int i{0}; i < ngroups; ++i) {
-      const struct group* gr = getgrgid(groups[i]);
+    using SizeType = std::vector<gid_t>::size_type;
+    SizeType ngroups{0};
+    auto int_ptr{reinterpret_cast<int*>(&ngroups)};
+    getgrouplist(pw->pw_name, pw->pw_gid, nullptr, int_ptr);
+    std::vector<gid_t> groups(ngroups);
+    getgrouplist(pw->pw_name, pw->pw_gid, groups.data(), int_ptr);
+    for (SizeType i{0}; i < ngroups; ++i) {
+      const struct group* gr{getgrgid(groups[i])};
       local_users_info.groups[groups[i]] = gr->gr_name;
       local_users_info.users[pw->pw_uid].gids.insert(groups[i]);
     }

@@ -84,11 +84,13 @@ cleanup:
 SEC("tracepoint/syscalls/sys_enter_openat")
 int tracepoint__syscalls__sys_enter_openat(struct syscall_trace_enter* ctx) {
   int open_flags = (int)ctx->args[2];
+  /*
   int flag1 = (open_flags & O_CREAT) && (open_flags & (O_WRONLY)) &&
               (open_flags & (O_TRUNC | O_APPEND));
   int flag2 = (open_flags & O_CREAT) && (open_flags & (O_RDWR)) &&
               !(open_flags & (O_TRUNC | O_APPEND));
-  int flags = (open_flags & O_CREAT) && (open_flags & (O_WRONLY)) &&
+  */
+  int flags = (open_flags & O_CREAT) && (open_flags & O_WRONLY) &&
               !(open_flags & O_TMPFILE);
   if (!flags) return 0;
   return on_sys_enter_file((const char*)ctx->args[1]);

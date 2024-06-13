@@ -3,11 +3,12 @@
 
 #include "bpf_consts.h"
 
+/*
 static __always_inline
 int get_full_path(char path[PATH_MAX], const struct dentry* dentry) {
   if (!path || !dentry) return -1;
   unsigned buf_off = (PATH_MAX >> 1);
-// #pragma unroll
+#pragma unroll
   for (int i = 0; i < MAX_DENTRY_DEPTH; ++i) {
     int res = -1;
     const struct dentry* new_dentry = NULL;
@@ -48,7 +49,7 @@ int get_full_path_v2(void* ptr, const struct dentry* dentry) {
   if (!path || !dentry) return -1;
   unsigned buf_off = PATH_MAX - 1;
   path[buf_off] = '\0';
-// #pragma unroll
+#pragma unroll
   for (int i = 0; i < MAX_DENTRY_DEPTH; ++i) {
     const struct dentry* new_dentry = NULL;
     int res = bpf_core_read(&new_dentry, sizeof(new_dentry), &dentry->d_parent);
@@ -79,6 +80,7 @@ int get_full_path_v2(void* ptr, const struct dentry* dentry) {
   }
   return (int)buf_off;
 }
+*/
 
 static __always_inline
 int get_full_path_v3(void* ptr, const struct dentry* dentry) {
@@ -87,7 +89,7 @@ int get_full_path_v3(void* ptr, const struct dentry* dentry) {
   const char* names[MAX_DENTRY_DEPTH];
   int res = 0;
   int i;
-// #pragma unroll
+#pragma unroll
   for (i = 0; i < MAX_DENTRY_DEPTH; ++i) {
     const struct dentry* new_dentry = NULL;
     res = bpf_core_read(&new_dentry, sizeof(new_dentry), &dentry->d_parent);

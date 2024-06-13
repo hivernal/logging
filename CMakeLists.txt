@@ -10,9 +10,9 @@ set(BPF_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/audit")
 set(BPFTOOL "${CMAKE_CURRENT_SOURCE_DIR}/bpftool/src/bpftool")
 set(NAME audit)
 
-set(SRC 
+set(SRC
   audit/main.cpp
-  audit/database.cpp 
+  audit/database.cpp
   audit/bpf.cpp
   audit/audit_database.cpp
 )
@@ -31,5 +31,22 @@ add_custom_command(
 
 find_package(mysql-concpp REQUIRED)
 add_executable(audit ${SRC} skel)
-target_include_directories(audit PRIVATE ${INCLUDE})
+target_include_directories(audit SYSTEM PRIVATE ${INCLUDE})
 target_link_libraries(audit PRIVATE ${LIB})
+target_compile_options(audit
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+    -Weffc++
+    -Wconversion
+    -Wsign-conversion
+    -Wnon-virtual-dtor
+    -Wold-style-cast
+    -Wsign-promo
+    -Wduplicated-branches
+    -Wduplicated-cond
+    -Wzero-as-null-pointer-constant
+    -Wlogical-op
+)

@@ -3,12 +3,24 @@
 
 #include "bpf_consts.h"
 
+#ifndef O_WRONLY
 #define O_WRONLY 000000001
+#endif
+#ifndef O_CREAT
 #define O_CREAT 000000100
+#endif
+#ifndef O_TRUNC
 #define O_TRUNC 000001000
+#endif
+#ifndef O_APPEND
 #define O_APPEND 000002000
+#endif
+#ifndef O_TMPFILE
 #define O_TMPFILE 020000000
+#endif
+#ifndef O_RDWR
 #define O_RDWR 000000002
+#endif
 
 enum file_operation_t { OPENAT, UNLINK, MKDIR, RENAME, CHOWN, CHMOD };
 

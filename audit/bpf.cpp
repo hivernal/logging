@@ -4,14 +4,16 @@
 #include <signal.h>
 #include <sys/resource.h>
 
+#include <functional>
 #include <limits>
 #include <sstream>
 
 namespace audit {
 
-AuditDataBase Bpf::db_;
-bool Bpf::run_ = true;
-std::vector<std::string> Bpf::file_include_paths_;
+AuditDataBase Bpf::db_{};
+Bpf* Bpf::instance_{nullptr};
+bool Bpf::run_{true};
+std::vector<std::string> Bpf::file_include_paths_{};
 std::vector<std::string> Bpf::file_exclude_paths_{"/dev/null"};
 
 const char* kCreateRingBufferError{"Failed to open and load BPF skeleton"};
@@ -20,11 +22,29 @@ const char* kOpenSkeletonError{"Failed to open BPF skeleton"};
 const char* kLoadSkeletonError{"Failed to load and verify BPF skeleton"};
 const char* kAttachSkeletonError{"Failed to attach BPF skeleton"};
 
+Bpf& Bpf::Instance() {
+  if (instance_) {
+    return *instance_;
+  }
+  static Bpf instance{};
+  instance_ = &instance;
+  return instance;
+}
+
+Bpf& Bpf::Instance(std::string_view url, std::string_view user,
+                   std::string_view pass, std::string_view database) {
+  if (instance_) {
+    return *instance_;
+  }
+  static Bpf instance{url, user, pass, database};
+  instance_ = &instance;
+  return instance;
+}
+
 Bpf::Bpf() {
-  struct rlimit rlim = {
-      .rlim_cur = 512UL << 20,
-      .rlim_max = 512UL << 20,
-  };
+  struct rlimit rlim {};
+  rlim.rlim_cur = 512UL << 20;
+  rlim.rlim_max = 512UL << 20;
   int err = setrlimit(RLIMIT_MEMLOCK, &rlim);
   if (err) {
     throw std::runtime_error(kUnlockMemoryError);
@@ -103,7 +123,7 @@ Bpf::~Bpf() {
   audit_bpf__destroy(skel_);
 }
 
-void Bpf::SigHandle(int sig) { run_ = false; }
+void Bpf::SigHandle([[maybe_unused]] int sig) { run_ = false; }
 
 int Bpf::Poll(int time_nsec) {
   int err = ring_buffer__poll(setuid_rb_, time_nsec);
@@ -118,12 +138,12 @@ bool Bpf::Run() { return run_; }
 
 void Bpf::SetFileIncludePaths(std::vector<std::string>&& file_include) {
   if (file_include.size()) {
-    file_include_paths_ = std::move(file_include);
+    file_include_paths_ = file_include;
   }
 }
 void Bpf::SetFileExcludePaths(std::vector<std::string>&& file_exclude) {
   if (file_exclude.size()) {
-    file_exclude_paths_ = std::move(file_exclude);
+    file_exclude_paths_ = file_exclude;
   }
 }
 
@@ -155,9 +175,9 @@ bool IsRelative(const char* path) {
   return false;
 }
 
-char* ChmodToChar(mode_t mode) {
+std::unique_ptr<char[]> ChmodToChar(mode_t mode) {
   constexpr int chmod_str_size{10};
-  char* chmod_str{new char[chmod_str_size]};
+  std::unique_ptr<char[]> chmod_str{new char[chmod_str_size]};
   if (!chmod_str) return nullptr;
   enum FileFlags {
     kRead = 0400,
@@ -165,8 +185,8 @@ char* ChmodToChar(mode_t mode) {
     kExecute = 0100,
     kSpecial = 04000
   };
-  constexpr int steps{3};
-  for (int i{0}; i < steps; ++i) {
+  constexpr std::size_t steps{3};
+  for (std::size_t i{0}; i < steps; ++i) {
     if (mode & (kRead >> (steps * i))) {
       chmod_str[i * steps] = 'r';
     } else {
@@ -200,48 +220,34 @@ char* ChmodToChar(mode_t mode) {
   return chmod_str;
 }
 
-char* ChownToChar(uid_t uid, gid_t gid) {
+std::unique_ptr<char[]> ChownToChar(uid_t uid, gid_t gid) {
   constexpr int chown_str_size{11};
-  char* chown_str{new char[chown_str_size]};
-  if (!chown_str) return nullptr;
-  int offset{0};
+  std::unique_ptr<char[]> chown_str{new char[chown_str_size]};
+  if (!chown_str.get()) return nullptr;
+  std::size_t offset{0};
   if (uid < std::numeric_limits<uid_t>::max()) {
-    offset = std::sprintf(chown_str, "%u", uid);
+    offset = static_cast<std::size_t>(std::sprintf(chown_str.get(), "%u", uid));
   }
   chown_str[offset++] = ':';
   if (gid < std::numeric_limits<gid_t>::max()) {
-    offset += std::sprintf(chown_str + offset, "%u", gid);
+    offset += static_cast<std::size_t>(
+        std::sprintf(chown_str.get() + offset, "%u", gid));
   }
   chown_str[offset] = '\0';
   return chown_str;
-}
-
-bool ExcludePath(const std::vector<std::string>& file_include_paths,
-                 const std::vector<std::string>& file_exclude_paths,
-                 const std::string& pathname) {
-  for (const auto& path : file_exclude_paths) {
-    if (pathname.find(path) != std::string::npos) {
-      return true;
-    }
-  }
-  for (const auto& path : file_include_paths) {
-    if (pathname.find(path) != std::string::npos) {
-      return false;
-    }
-  }
-  return true;
 }
 
 int Bpf::FileHandle([[maybe_unused]] void* ctx, void* data,
                     [[maybe_unused]] size_t data_sz) {
   auto file{static_cast<const struct file_data_t*>(data)};
   char buffer[PATH_MAX];
-  const char* filename{IsRelative(file->filename)
+  const char* filename{IsRelative(file->filename + file->offset)
                            ? (realpath(file->filename, buffer), buffer)
                            : file->filename};
-  if (ExcludePath(file_include_paths_, file_exclude_paths_, filename)) return 0;
+  auto exclude{ExcludePath(filename)};
+  if (exclude && file->operation != RENAME) return 0;
   std::string operation{};
-  char* argv{nullptr};
+  std::unique_ptr<char[]> argv{};
   switch (file->operation) {
     case OPENAT:
       operation = "openat";
@@ -252,27 +258,9 @@ int Bpf::FileHandle([[maybe_unused]] void* ctx, void* data,
     case MKDIR:
       operation = "mkdir";
       break;
-    case RENAME: {
-      operation = "rename";
-      auto rename{static_cast<const struct rename_data_t*>(data)};
-      if (IsRelative(rename->new_filename + rename->offset)) {
-        char* buffer{new char[PATH_MAX]};
-        realpath(rename->new_filename, buffer);
-        argv = buffer;
-        if (ExcludePath(file_include_paths_, file_exclude_paths_, argv)) {
-          delete argv;
-          return 0;
-        }
-        break;
-      } else {
-        if (ExcludePath(file_include_paths_, file_exclude_paths_,
-                        rename->new_filename)) {
-          return 0;
-        }
-        db_.AddFile(operation, file, filename, rename->new_filename);
-        return 0;
-      }
-    }
+    case RENAME:
+      return RenameHandle(
+          filename, static_cast<const struct rename_data_t*>(data), exclude);
     case CHOWN: {
       operation = "chown";
       auto chown{static_cast<const struct chown_data_t*>(data)};
@@ -286,8 +274,36 @@ int Bpf::FileHandle([[maybe_unused]] void* ctx, void* data,
       break;
     }
   }
-  db_.AddFile(operation, file, filename, argv);
-  delete argv;
+  db_.AddFile(operation, file, filename, argv.get());
+  return 0;
+}
+
+bool Bpf::ExcludePath(const std::string& pathname) {
+  for (const auto& path : file_exclude_paths_) {
+    if (pathname.find(path) != std::string::npos) {
+      return true;
+    }
+  }
+  for (const auto& path : file_include_paths_) {
+    if (pathname.find(path) != std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
+int Bpf::RenameHandle(const char* filename, const struct rename_data_t* rename,
+                      bool exclude) {
+  const char* new_filename{rename->new_filename};
+  std::unique_ptr<char[]> buffer{};
+  if (IsRelative(rename->new_filename + rename->offset)) {
+    buffer = std::make_unique<char[]>(PATH_MAX);
+    realpath(rename->new_filename, buffer.get());
+    new_filename = buffer.get();
+  }
+  if (!exclude || !ExcludePath(new_filename)) {
+    db_.AddFile("rename", &rename->data, filename, new_filename);
+  }
   return 0;
 }
 
@@ -298,8 +314,8 @@ std::string IpV4ToHex(std::uint32_t ipv4) {
   std::string ip_hex{"0x"};
   std::uint32_t mask{0xF};
   auto shift{sizeof(ipv4) * 8 - 4};
-  for (int i{0}; i < sizeof(ipv4) * 8 / 4; ++i) {
-    std::size_t index{static_cast<std::size_t>(ipv4 & (mask << shift))};
+  for (std::size_t i{0}; i < sizeof(ipv4) * 8 / 4; ++i) {
+    auto index{static_cast<std::size_t>(ipv4 & (mask << shift))};
     index >>= shift;
     ip_hex.push_back(kHexCodes[index]);
     shift -= 4;

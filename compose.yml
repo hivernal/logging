@@ -4,7 +4,7 @@ services:
     container_name: db
     hostname: db
     ports:
-      - "3306:3306"
+      - 3306:3306
     environment:
       - MYSQL_DATABASE=audit
       - MYSQL_ROOT_PASSWORD=atnad
@@ -14,6 +14,18 @@ services:
     volumes:
       - ./my.cnf:/etc/my.cnf
       - ./create.sql:/docker-entrypoint-initdb.d/a.sql
+
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      - PMA_ARBITRARY=1
+    networks:
+      db_net:
+        ipv4_address: 172.20.0.3
+
 
 networks:
   db_net:

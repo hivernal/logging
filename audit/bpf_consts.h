@@ -3,12 +3,12 @@
 
 #ifndef TASK_COMM_LEN
 #define TASK_COMM_LEN 16
-#endif  // TASK_COMM_LEN
+#endif
 #ifndef PATH_MAX
 #define PATH_MAX 4096
-#endif  // PATH_MAX
+#endif
 #ifndef MAX_DENTRY_DEPTH
 #define MAX_DENTRY_DEPTH 20
-#endif  // MAX_DENTRY_DEPTH
+#endif
 
 #endif  // AUDIT_BPF_CONSTS_H_

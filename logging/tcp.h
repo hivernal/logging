@@ -1,11 +1,11 @@
-#ifndef AUDIT_TCP_H_
-#define AUDIT_TCP_H_
+#ifndef LOGGING_TCP_H_
+#define LOGGING_TCP_H_
 
 #include "bpf_consts.h"
 
 #ifndef AF_INET
 #define AF_INET 2
-#endif  // AF_INET
+#endif
 
 enum tcp_version_t { IPV4, IPV6 };
 enum tcp_operation_t { CONNECT, ACCEPT };
@@ -35,4 +35,4 @@ struct tcp_v6_data_t {
   uint16_t dport;
 };
 
-#endif  // AUDIT_TCP_H_
+#endif  // LOGGING_TCP_H_

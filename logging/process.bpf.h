@@ -1,5 +1,5 @@
-#ifndef AUDIT_PROCESS_BPF_H_
-#define AUDIT_PROCESS_BPF_H_
+#ifndef LOGGING_PROCESS_BPF_H_
+#define LOGGING_PROCESS_BPF_H_
 
 #include "common.bpf.h"
 #include "process.h"
@@ -105,4 +105,4 @@ cleanup:
   return 0;
 }
 
-#endif  // AUDIT_PROCESS_BPF_H_
+#endif  // LOGGING_PROCESS_BPF_H_

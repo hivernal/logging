@@ -1,5 +1,5 @@
-#ifndef AUDIT_TCP_BPF_H_
-#define AUDIT_TCP_BPF_H_
+#ifndef LOGGING_TCP_BPF_H_
+#define LOGGING_TCP_BPF_H_
 
 #include "tcp.h"
 
@@ -136,4 +136,4 @@ int BPF_KRETPROBE(inet_csk_accept, struct sock* sk) {
   return 0;
 }
 
-#endif  // AUDIT_TCP_BPF_H_
+#endif  // LOGGING_TCP_BPF_H_

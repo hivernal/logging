@@ -14,7 +14,6 @@ services:
       db_net:
         ipv4_address: 172.20.0.2
     volumes:
-        # - ./my.cnf:/etc/my.cnf
         - ./create.sql:/docker-entrypoint-initdb.d/a.sql
 
 networks:

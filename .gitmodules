@@ -1,0 +1,6 @@
+[submodule "libpqxx"]
+	path = libpqxx
+	url = https://github.com/jtv/libpqxx
+[submodule "bpftool"]
+	path = bpftool
+	url = https://github.com/libbpf/bpftool

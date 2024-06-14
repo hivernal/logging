@@ -1,5 +1,5 @@
-#ifndef AUDIT_BPF_CONSTS_H_
-#define AUDIT_BPF_CONSTS_H_
+#ifndef LOGGING_BPF_CONSTS_H_
+#define LOGGING_BPF_CONSTS_H_
 
 #ifndef TASK_COMM_LEN
 #define TASK_COMM_LEN 16
@@ -11,4 +11,4 @@
 #define MAX_DENTRY_DEPTH 20
 #endif
 
-#endif  // AUDIT_BPF_CONSTS_H_
+#endif  // LOGGING_BPF_CONSTS_H_

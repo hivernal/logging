@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "audit/bpf.h"
+#include "logging/bpf.h"
 
 class Args {
  public:
@@ -68,7 +68,7 @@ class Args {
 int main(int argc, char* argv[]) try {
   Args args{argc, argv};
   // audit::Bpf bpf{args.Url(), args.User(), args.Pass(), args.Database()};
-  auto& bpf{audit::Bpf::Instance(args.Url(), args.User(), args.Pass(),
+  auto& bpf{logging_audit::Bpf::Instance(args.Url(), args.User(), args.Pass(),
                                  args.Database())};
   bpf.SetFileIncludePaths(args.FileIncludePaths());
   bpf.SetFileExcludePaths(args.FileExcludePaths());

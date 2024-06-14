@@ -1,4 +1,4 @@
-#include "audit/audit_database.h"
+#include "logging/audit_database.h"
 
 #include <arpa/inet.h>
 #include <grp.h>
@@ -11,7 +11,7 @@
 #include <random>
 #include <sstream>
 
-namespace audit {
+namespace logging_audit {
 
 std::uint32_t GetHostID(const std::string& filename) {
   std::ifstream file_in{filename};
@@ -23,7 +23,7 @@ std::uint32_t GetHostID(const std::string& filename) {
     std::mt19937 mt{std::random_device{}()};
     std::uint32_t host_id{static_cast<std::uint32_t>(mt())};
     file_out << host_id;
-    return static_cast<int>(host_id);
+    return host_id;
   } else {
     std::uint32_t host_id;
     file_in >> host_id;
@@ -362,7 +362,7 @@ void AuditDataBase::AddUsersGroups(const UsersGroupsInfo& local_info,
   }
 }
 
-std::int32_t AuditDataBase::HostID() { return kHostID; }
+std::uint32_t AuditDataBase::HostID() { return kHostID; }
 
 void AuditDataBase::AddSetuid(const struct setuid_data_t* data) {
   ExecParams0("insert into setuid values($1,$2,$3,$4,$5,$6,$7)",
@@ -404,4 +404,4 @@ void AuditDataBase::AddTcp(std::string_view operation,
   Commit();
 }
 
-}  // namespace audit
+}  // namespace logging

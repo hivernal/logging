@@ -1,5 +1,5 @@
-#ifndef AUDIT_FILE_H_
-#define AUDIT_FILE_H_
+#ifndef LOGGING_FILE_H_
+#define LOGGING_FILE_H_
 
 #include "bpf_consts.h"
 
@@ -52,4 +52,4 @@ struct chmod_data_t {
   unsigned mode;
 };
 
-#endif  // AUDIT_FILE_H_
+#endif  // LOGGING_FILE_H_

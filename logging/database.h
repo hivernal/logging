@@ -1,5 +1,5 @@
-#ifndef AUDIT_DATABASE_H_
-#define AUDIT_DATABASE_H_
+#ifndef LOGGING_DATABASE_H_
+#define LOGGING_DATABASE_H_
 
 #include <memory>
 #include <sstream>
@@ -7,7 +7,7 @@
 
 #include "pqxx/pqxx"
 
-namespace audit {
+namespace logging_audit {
 
 class DataBase {
  public:
@@ -35,6 +35,6 @@ class DataBase {
   std::unique_ptr<pqxx::work> transaction_{};
 };
 
-}  // namespace audit
+}  // namespace logging_audit
 
-#endif  // AUDIT_DATABASE_H_
+#endif  // LOGGING_DATABASE_H_

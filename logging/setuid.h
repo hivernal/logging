@@ -1,5 +1,5 @@
-#ifndef AUDIT_SETUID_H_
-#define AUDIT_SETUID_H_
+#ifndef LOGGING_SETUID_H_
+#define LOGGING_SETUID_H_
 
 #include "bpf_consts.h"
 
@@ -12,4 +12,4 @@ struct setuid_data_t {
   int ret;
 };
 
-#endif  // AUDIT_SETUID_H_
+#endif  // LOGGING_SETUID_H_

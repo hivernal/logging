@@ -1,5 +1,5 @@
-#ifndef AUDIT_FILE_BPF_H_
-#define AUDIT_FILE_BPF_H_
+#ifndef LOGGING_FILE_BPF_H_
+#define LOGGING_FILE_BPF_H_
 
 #include "file.h"
 #include "common.bpf.h"
@@ -307,4 +307,4 @@ int tracepoint__syscalls__sys_exit_fchmodat2(struct syscall_trace_exit* ctx) {
   return on_sys_exit_chmod(ctx);
 }
 
-#endif  // AUDIT_FILE_BPF_H_
+#endif  // LOGGING_FILE_BPF_H_

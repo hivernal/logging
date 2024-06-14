@@ -1,5 +1,5 @@
-#ifndef AUDIT_COMMON_BPF_H_
-#define AUDIT_COMMON_BPF_H_
+#ifndef LOGGING_COMMON_BPF_H_
+#define LOGGING_COMMON_BPF_H_
 
 #include "bpf_consts.h"
 
@@ -120,4 +120,4 @@ int get_full_path_v3(void* ptr, const struct dentry* dentry) {
   return (int)count;
 }
 
-#endif  // AUDIT_COMMON_BPF_H_
+#endif  // LOGGING_COMMON_BPF_H_

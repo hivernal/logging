@@ -1,16 +1,16 @@
-#ifndef AUDIT_BPF_H_
-#define AUDIT_BPF_H_
+#ifndef LOGGING_BPF_H_
+#define LOGGING_BPF_H_
 
 #include <bpf/libbpf.h>
 
 #include <string>
 #include <string_view>
 
-#include "audit/audit.h"
-#include "audit/audit.skel.h"
-#include "audit/audit_database.h"
+#include "logging/logging.skel.h"
+#include "logging/logging.h"
+#include "logging/audit_database.h"
 
-namespace audit {
+namespace logging_audit {
 
 class Bpf {
  public:
@@ -46,7 +46,7 @@ class Bpf {
   static bool run_;
   static std::vector<std::string> file_include_paths_;
   static std::vector<std::string> file_exclude_paths_;
-  struct audit_bpf* skel_{nullptr};
+  struct logging_bpf* skel_{nullptr};
   struct ring_buffer* setuid_rb_{nullptr};
   struct ring_buffer* file_rb_{nullptr};
   struct ring_buffer* execve_rb_{nullptr};
@@ -54,6 +54,6 @@ class Bpf {
   struct ring_buffer* tcp_rb_{nullptr};
 };
 
-}  // namespace audit
+}  // namespace logging
 
-#endif  // AUDIT_BPF_H_
+#endif  // LOGGING_BPF_H_

@@ -1,4 +1,4 @@
-#include "audit/bpf.h"
+#include "logging/bpf.h"
 
 #include <arpa/inet.h>
 #include <signal.h>
@@ -8,7 +8,7 @@
 #include <limits>
 #include <sstream>
 
-namespace audit {
+namespace logging_audit {
 
 AuditDataBase Bpf::db_{};
 Bpf* Bpf::instance_{nullptr};
@@ -53,19 +53,19 @@ Bpf::Bpf() {
   signal(SIGINT, SigHandle);
   signal(SIGTERM, SigHandle);
 
-  skel_ = audit_bpf__open();
+  skel_ = logging_bpf__open();
   if (!skel_) {
     throw std::runtime_error(kOpenSkeletonError);
     return;
   }
 
-  err = audit_bpf__load(skel_);
+  err = logging_bpf__load(skel_);
   if (err) {
     throw std::runtime_error(kLoadSkeletonError);
     return;
   }
 
-  err = audit_bpf__attach(skel_);
+  err = logging_bpf__attach(skel_);
   if (err) {
     throw std::runtime_error(kAttachSkeletonError);
     return;
@@ -120,7 +120,7 @@ Bpf::~Bpf() {
   ring_buffer__free(execve_rb_);
   ring_buffer__free(exit_rb_);
   ring_buffer__free(tcp_rb_);
-  audit_bpf__destroy(skel_);
+  logging_bpf__destroy(skel_);
 }
 
 void Bpf::SigHandle([[maybe_unused]] int sig) { run_ = false; }
@@ -374,4 +374,4 @@ int Bpf::TcpHandle([[maybe_unused]] void* ctx, void* data,
   return 0;
 }
 
-}  // namespace audit
+}  // namespace logging_audit

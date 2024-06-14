@@ -1,8 +1,8 @@
-#include "audit/database.h"
+#include "logging/database.h"
 
 #include <sstream>
 
-namespace audit {
+namespace logging_audit {
 
 std::string FillOptions(std::string_view url, std::string_view user,
                         std::string_view pass, std::string_view database) {
@@ -32,9 +32,7 @@ void DataBase::Connect(std::string_view url, std::string_view user,
   transaction_ = std::make_unique<pqxx::work>(*connection_);
 }
 
-void DataBase::Commit() {
-  transaction_->commit();
-}
+void DataBase::Commit() { transaction_->commit(); }
 
 pqxx::result DataBase::Execute(pqxx::zview query) {
   return transaction_->exec0(query);
@@ -44,4 +42,4 @@ pqxx::result DataBase::ExecuteQuery(std::string_view query) {
   return transaction_->exec(query);
 };
 
-}  // namespace audit
+}  // namespace logging

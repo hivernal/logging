@@ -1,5 +1,5 @@
-#ifndef AUDIT_SETUID_BPF_H_
-#define AUDIT_SETUID_BPF_H_
+#ifndef LOGGING_SETUID_BPF_H_
+#define LOGGING_SETUID_BPF_H_
 
 #include "setuid.h"
 
@@ -52,4 +52,4 @@ int tracepoint__syscalls__sys_exit_setuid(struct syscall_trace_exit* ctx) {
   return 0;
 }
 
-#endif  // AUDIT_SETUID_BPF_H_
+#endif  // LOGGING_SETUID_BPF_H_

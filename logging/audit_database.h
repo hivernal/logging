@@ -1,5 +1,5 @@
-#ifndef AUDIT_AUDIT_DATABASE_H_
-#define AUDIT_AUDIT_DATABASE_H_
+#ifndef LOGGING_AUDIT_DATABASE_H_
+#define LOGGING_AUDIT_DATABASE_H_
 
 #include <unistd.h>
 
@@ -7,10 +7,10 @@
 #include <map>
 #include <set>
 
-#include "audit/audit.h"
-#include "audit/database.h"
+#include "logging/logging.h"
+#include "logging/database.h"
 
-namespace audit {
+namespace logging_audit {
 
 class AuditDataBase : public DataBase {
  public:
@@ -22,7 +22,7 @@ class AuditDataBase : public DataBase {
   AuditDataBase(AuditDataBase&&) = delete;
   AuditDataBase& operator=(AuditDataBase&&) = delete;
   ~AuditDataBase() = default;
-  std::int32_t HostID();
+  std::uint32_t HostID();
   void Sync();
   void AddSetuid(const struct setuid_data_t* data);
   void AddExecve(const struct execve_data_t* data);
@@ -66,6 +66,6 @@ class AuditDataBase : public DataBase {
                       const DataBaseUsersGroupsInfo& db_info);
 };
 
-}  // namespace audit
+}  // namespace logging_audit
 
-#endif  // AUDIT_AUDIT_DATABASE_H_
+#endif  // LOGGING_AUDIT_DATABASE_H_

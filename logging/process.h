@@ -1,5 +1,5 @@
-#ifndef AUDIT_PROCESS_H_
-#define AUDIT_PROCESS_H_
+#ifndef LOGGING_PROCESS_H_
+#define LOGGING_PROCESS_H_
 
 #define ARGSIZE 128
 #define TOTAL_MAX_ARGS 60
@@ -27,4 +27,4 @@ struct exit_data_t {
   int code;
 };
 
-#endif  // AUDIT_PROCESS_H_
+#endif  // LOGGING_PROCESS_H_

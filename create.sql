@@ -1,143 +1,151 @@
-create database if not exists audit;
-use audit;
-
-create table if not exists audit.hosts(
-  id int unsigned,
+create table if not exists hosts(
+  id bigint,
   name varchar(64),
   primary key(id));
 
-create table if not exists audit.hosts_ips(
-  host_id int unsigned,
-  ip int unsigned,
-  netmask int unsigned,
+create table if not exists hosts_ips(
+  host_id bigint,
+  ip inet,
   ifa_name varchar(32),
-  foreign key(host_id) references audit.hosts(id));
+  foreign key(host_id) references hosts(id));
 
-create table if not exists audit.users(
-  host_id int unsigned,
-  id int unsigned,
+create table if not exists users(
+  host_id bigint,
+  id int,
   name varchar(32),
-  enabled bit(1) default true,
+  enabled boolean default true,
   primary key(host_id, id),
-  foreign key(host_id) references audit.hosts(id));
+  foreign key(host_id) references hosts(id));
 
-create table if not exists audit.groups(
-  host_id int unsigned,
-  id int unsigned,
+create table if not exists groups(
+  host_id bigint,
+  id int,
   name varchar(32),
-  enabled bit(1) default true,
+  enabled boolean default true,
   primary key(host_id, id),
-  foreign key(host_id) references audit.hosts(id));
+  foreign key(host_id) references hosts(id));
 
-create table if not exists audit.users_groups(
-  host_id int unsigned,
-  user_id int unsigned,
-  group_id int unsigned,
+create table if not exists users_groups(
+  host_id bigint,
+  user_id int,
+  group_id int,
   primary key(host_id, user_id, group_id),
-  foreign key(host_id, user_id) references audit.users(host_id, id),
-  foreign key(host_id, group_id) references audit.groups(host_id, id));
+  foreign key(host_id, user_id) references users(host_id, id),
+  foreign key(host_id, group_id) references groups(host_id, id));
 
-create view audit.hosts_ips_view as
-select host_id, inet_ntoa(ip), inet_ntoa(netmask), ifa_name from hosts_ips;
-
-create view audit.users_groups_view as
-select audit.users_groups.host_id, audit.users_groups.user_id,
-       audit.users_groups.group_id , audit.users.enabled as user_enabled,
-       audit.groups.enabled as group_enabled
-  from audit.users_groups inner join(audit.users, audit.groups)
-                          on  audit.users_groups.user_id = audit.users.id
-                          and audit.users_groups.group_id = audit.groups.id;
-
-create table if not exists audit.execve(
-  time_nsec bigint unsigned,
-  host_id int unsigned,
-  user_id int unsigned,
-  pid int,
-  ppid int,
-  directory varchar(256),
-  command varchar(16),
-  argv varchar(1024),
-  foreign key(host_id) references audit.hosts(id),
-  index (user_id));
-
-create table if not exists audit.exit(
-  time_nsec bigint unsigned,
-  host_id int unsigned,
-  user_id int unsigned,
-  pid int,
-  command varchar(16),
-  exit_code int,
-  foreign key(host_id) references audit.hosts(id),
-  index(user_id));
-
-create table if not exists audit.setuid(
-  time_nsec bigint unsigned,
-  host_id int unsigned,
-  user_id int unsigned,
-  set_user_id int unsigned,
+create table if not exists setuid(
+  time_nsec bigint,
+  host_id bigint,
+  user_id int,
+  set_user_id int,
   pid int,
   command varchar(16),
   ret int,
-  foreign key(host_id) references audit.hosts(id),
-  index(user_id));
+  foreign key(host_id) references hosts(id));
+create index setuid_index on setuid(user_id, pid);
 
-create table if not exists audit.files(
-  time_nsec bigint unsigned,
-  operation enum('unlink', 'openat', 'mkdir', 'rename', 'chmod', 'chown'),
-  host_id int unsigned,
-  user_id int unsigned,
+create table if not exists execve(
+  time_nsec bigint,
+  host_id bigint,
+  user_id int,
+  pid int,
+  ppid int,
+  directory varchar(4096),
+  command varchar(16),
+  argv varchar(1024),
+  foreign key(host_id) references hosts(id));
+create index execve_index on execve(user_id, pid, ppid);
+
+create table if not exists exit(
+  time_nsec bigint,
+  host_id bigint,
+  user_id int,
+  pid int,
+  command varchar(16),
+  exit_code int,
+  foreign key(host_id) references hosts(id));
+create index exit_index on exit(user_id, pid);
+
+create type file_operation as enum('unlink', 'openat', 'mkdir', 'rename', 'chmod', 'chown');
+create table if not exists files(
+  time_nsec bigint,
+  operation file_operation,
+  host_id bigint,
+  user_id int,
   pid int,
   command varchar(16),
   filename varchar(4096),
   argv varchar(4096),
   ret int,
-  foreign key(host_id) references audit.hosts(id),
-  index(user_id));
+  foreign key(host_id) references hosts(id));
+create index files_index on files(user_id, pid);
 
-create table if not exists audit.tcp(
-  time_nsec bigint unsigned,
-  operation enum('connect', 'accept'),
-  host_id int unsigned,
-  user_id int unsigned,
+create type tcp_operation as enum('connect', 'accept');
+create table if not exists tcp(
+  time_nsec bigint,
+  operation tcp_operation,
+  host_id bigint,
+  user_id int,
   pid int,
   command varchar(16),
-  source_ip VARBINARY(16),
-  source_port smallint unsigned,
-  dest_ip VARBINARY(16),
-  dest_port smallint unsigned,
-  foreign key(host_id) references audit.hosts(id),
-  index(user_id));
+  source_ip inet,
+  source_port int,
+  dest_ip inet,
+  dest_port int,
+  foreign key(host_id) references hosts(id));
+create index tcp_index on tcp(user_id, pid);
 
-create view audit.tcp_view as
-select from_unixtime(time_nsec/1000000000), operation, host_id, user_id, pid, command,
-       inet6_ntoa(source_ip), source_port, inet6_ntoa(dest_ip), dest_port
-  from audit.tcp;
+create role client;
+grant select, insert, update(name) on hosts to client;
+grant select, insert, delete on hosts_ips to client;
+grant select, insert, update(name, enabled) on users to client;
+grant select, insert, update(name, enabled) on groups to client;
+grant select, insert, delete on users_groups to client;
+grant insert on setuid, execve, exit, files, tcp to client;
+create user client_user password 'client';
+grant client to client_user;
 
-create role 'client';
-grant select, insert, update(name) on audit.hosts to 'client';
-grant select, insert, delete on audit.hosts_ips to 'client';
-grant select, insert, update(name, enabled) on audit.users to 'client';
-grant select, insert, update(name, enabled) on audit.groups to 'client';
-grant select, insert, delete on audit.users_groups to 'client';
-grant insert on audit.setuid to 'client';
-grant insert on audit.execve to 'client';
-grant insert on audit.exit to 'client';
-grant insert on audit.files to 'client';
-grant insert on audit.tcp to 'client';
-create user 'client_user' identified by 'client';
-grant 'client' to 'client_user';
-set default role all to 'client_user';
+create or replace function delete_users()
+  returns void
+  language sql
+  begin atomic
+  delete from users_groups a using users b
+    where b.id = a.user_id
+    and b.enabled = false;
+  end;
 
-create trigger audit.user_disable after update on audit.users
-  for each row
-    delete audit.users_groups
-      from audit.users_groups inner join audit.users
-                              on audit.users.id = audit.users_groups.user_id
-                              where audit.users.enabled = false;
+create or replace function delete_users_trigger()
+  returns trigger as $$
+  begin
+    perform delete_users();
+    return new;
+  end;
+  $$
+  language plpgsql;
 
-create trigger audit.group_disable after update on audit.groups
-  for each row
-    delete audit.users_groups
-      from audit.users_groups inner join audit.groups
-                              on audit.groups.id = audit.users_groups.group_id
-                              where audit.groups.enabled = false;
+create or replace function delete_groups()
+  returns void
+  language sql
+  begin atomic
+  delete from users_groups a using groups b
+    where b.id = a.group_id
+    and b.enabled = false;
+  end;
+
+create or replace function delete_groups_trigger()
+  returns trigger as $$
+  begin
+    perform delete_groups();
+    return new;
+  end;
+  $$
+  language plpgsql;
+
+create trigger user_disable after update of enabled on users
+  for each statement
+  execute function delete_users_trigger();
+
+create trigger group_disable after update of enabled on groups
+  for each statement
+  execute function delete_groups_trigger();
+

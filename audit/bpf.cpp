@@ -4,7 +4,7 @@
 #include <signal.h>
 #include <sys/resource.h>
 
-#include <functional>
+#include <iostream>
 #include <limits>
 #include <sstream>
 
@@ -307,6 +307,7 @@ int Bpf::RenameHandle(const char* filename, const struct rename_data_t* rename,
   return 0;
 }
 
+/*
 constexpr std::array kHexCodes{'0', '1', '2', '3', '4', '5', '6', '7',
                                '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
@@ -332,6 +333,7 @@ std::string IpV6ToHex(const std::uint8_t ipv6[16]) {
   }
   return ip_hex;
 }
+*/
 
 int Bpf::TcpHandle([[maybe_unused]] void* ctx, void* data,
                    [[maybe_unused]] size_t data_sz) {
@@ -347,15 +349,25 @@ int Bpf::TcpHandle([[maybe_unused]] void* ctx, void* data,
   }
   switch (tcp->version) {
     case IPV4: {
+      constexpr std::string::size_type size{16};
       auto tcp_v4{static_cast<const struct tcp_v4_data_t*>(data)};
-      db_.AddTcp(operation, tcp, IpV4ToHex(htonl(tcp_v4->saddr)), tcp_v4->lport,
-                 IpV4ToHex(htonl(tcp_v4->daddr)), ntohs(tcp_v4->dport));
+      std::string saddr(size, '\0');
+      inet_ntop(AF_INET, &tcp_v4->saddr, saddr.data(), size);
+      std::string daddr(size, '\0');
+      inet_ntop(AF_INET, &tcp_v4->daddr, daddr.data(), size);
+      db_.AddTcp(operation, tcp, saddr, tcp_v4->lport, daddr,
+                 ntohs(tcp_v4->dport));
       break;
     }
     case IPV6: {
+      constexpr std::string::size_type size{40};
       auto tcp_v6{static_cast<const struct tcp_v6_data_t*>(data)};
-      db_.AddTcp(operation, tcp, IpV6ToHex(tcp_v6->saddr), tcp_v6->lport,
-                 IpV6ToHex(tcp_v6->daddr), ntohs(tcp_v6->dport));
+      std::string saddr(size, '\0');
+      inet_ntop(AF_INET6, &tcp_v6->saddr, saddr.data(), size);
+      std::string daddr(size, '\0');
+      inet_ntop(AF_INET6, &tcp_v6->daddr, daddr.data(), size);
+      db_.AddTcp(operation, tcp, saddr, tcp_v6->lport, daddr,
+                 ntohs(tcp_v6->dport));
       break;
     }
   }

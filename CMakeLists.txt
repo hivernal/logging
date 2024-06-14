@@ -17,9 +17,10 @@ set(SRC
   audit/audit_database.cpp
 )
 set(INCLUDE ${CMAKE_CURRENT_SOURCE_DIR})
-set(mysql-concpp_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mysql")
-set(LIB ssl mysql::concpp-jdbc bpf)
-set(INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}")
+set(LIB pqxx bpf)
+set(LIBPQXX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libpqxx)
+set(LIBPQXX_INCLUDE ${LIBPQXX_DIR}/include)
+set(INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} ${LIBPQXX_INCLUDE})
 
 add_custom_command(
   OUTPUT skel
@@ -29,10 +30,11 @@ add_custom_command(
           "${BPF_SOURCE_DIR}/${NAME}.skel.h"
 )
 
-find_package(mysql-concpp REQUIRED)
+add_subdirectory(${LIBPQXX_DIR})
 add_executable(audit ${SRC} skel)
-target_include_directories(audit SYSTEM PRIVATE ${INCLUDE})
+target_include_directories(audit SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(audit PRIVATE ${LIB})
+#[[===
 target_compile_options(audit
   PRIVATE
     -Wall
@@ -50,3 +52,4 @@ target_compile_options(audit
     -Wzero-as-null-pointer-constant
     -Wlogical-op
 )
+===]]

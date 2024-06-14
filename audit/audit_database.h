@@ -22,16 +22,16 @@ class AuditDataBase : public DataBase {
   AuditDataBase(AuditDataBase&&) = delete;
   AuditDataBase& operator=(AuditDataBase&&) = delete;
   ~AuditDataBase() = default;
-  std::uint32_t HostID();
+  std::int32_t HostID();
   void Sync();
   void AddSetuid(const struct setuid_data_t* data);
   void AddExecve(const struct execve_data_t* data);
   void AddExit(const struct exit_data_t* data);
-  void AddFile(const std::string& operation, const struct file_data_t* file,
+  void AddFile(const std::string& operation, const struct file_data_t* data,
                const char* filename, const char* argv);
-  void AddTcp(const std::string& operation, const struct tcp_data_t* tcp,
-              const std::string& source_ip, std::uint16_t source_port,
-              const std::string& dest_ip, std::uint16_t dest_port);
+  void AddTcp(std::string_view operation, const struct tcp_data_t* data,
+              std::string_view source_ip, std::uint16_t source_port,
+              std::string_view dest_ip, std::uint16_t dest_port);
 
  private:
   const std::string kHostIDFilename{"/etc/audit_host_id"};

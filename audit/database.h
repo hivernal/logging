@@ -2,10 +2,10 @@
 #define AUDIT_DATABASE_H_
 
 #include <memory>
-#include <string>
+#include <sstream>
 #include <string_view>
 
-#include "mysql/include/mysql/jdbc.h"
+#include "pqxx/pqxx"
 
 namespace audit {
 
@@ -18,26 +18,23 @@ class DataBase {
   DataBase& operator=(const DataBase&) = delete;
   DataBase(DataBase&&) = delete;
   DataBase& operator=(DataBase&&) = delete;
-  virtual ~DataBase() = default;
-  bool IsValid() const;
-  void Close() const;
+  virtual ~DataBase();
   void Connect(std::string_view url, std::string_view user,
                std::string_view pass, std::string_view database);
-  bool Reconnect() const;
-  bool Execute(const std::string& query) const;
-  std::unique_ptr<sql::PreparedStatement> PreparedStatement(
-      const std::string& statement) const;
-  std::unique_ptr<sql::ResultSet> ExecuteQuery(const std::string& query) const;
+  pqxx::result Execute(pqxx::zview query);
+  pqxx::result ExecuteQuery(std::string_view query);
+  void Commit();
+
+  template <typename... Args>
+  pqxx::result ExecParams0(pqxx::zview query, Args&&... args) {
+    return transaction_->exec_params0(query, args...);
+  }
 
  private:
-  std::string url_{};
-  std::string user_{};
-  std::string pass_{};
-  std::string database_{};
-  sql::Driver* driver_{};
-  std::unique_ptr<sql::Connection> connection_{};
-  std::unique_ptr<sql::Statement> statement_{};
+  std::unique_ptr<pqxx::connection> connection_{};
+  std::unique_ptr<pqxx::work> transaction_{};
 };
 
 }  // namespace audit
+
 #endif  // AUDIT_DATABASE_H_

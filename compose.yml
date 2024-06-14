@@ -1,31 +1,21 @@
 services:
   db:
-    image: mysql
+    image: postgres
     container_name: db
     hostname: db
+    # user: postgres
     ports:
-      - 3306:3306
+      - 5432:5432
     environment:
-      - MYSQL_DATABASE=audit
-      - MYSQL_ROOT_PASSWORD=atnad
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=atnad
+      - POSTGRES_DB=audit
     networks:
       db_net:
         ipv4_address: 172.20.0.2
     volumes:
-      - ./my.cnf:/etc/my.cnf
-      - ./create.sql:/docker-entrypoint-initdb.d/a.sql
-
-  phpmyadmin:
-    image: phpmyadmin
-    restart: always
-    ports:
-      - 8080:80
-    environment:
-      - PMA_ARBITRARY=1
-    networks:
-      db_net:
-        ipv4_address: 172.20.0.3
-
+        # - ./my.cnf:/etc/my.cnf
+        - ./create.sql:/docker-entrypoint-initdb.d/a.sql
 
 networks:
   db_net:

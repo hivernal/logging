@@ -21,7 +21,7 @@ class Args {
             pass_ = optarg;
             break;
           case 'h':
-            url_ += optarg;
+            url_ = optarg;
             break;
           case 'd':
             database_ = optarg;
@@ -54,7 +54,7 @@ class Args {
 
  private:
   enum Options { kFileIncludePaths, kFileExcludePaths };
-  std::string url_{"tcp://"};
+  std::string url_{};
   std::string user_{};
   std::string pass_{};
   std::string database_{};

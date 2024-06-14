@@ -4,57 +4,44 @@
 
 namespace audit {
 
+std::string FillOptions(std::string_view url, std::string_view user,
+                        std::string_view pass, std::string_view database) {
+  std::string options{"postgresql://"};
+  options += user;
+  options += ':';
+  options += pass;
+  options += '@';
+  options += url;
+  options += '/';
+  options += database;
+  return options;
+}
+
 DataBase::DataBase(std::string_view url, std::string_view user,
                    std::string_view pass, std::string_view database)
-    : url_{url},
-      user_{user},
-      pass_{pass},
-      database_{database},
-      driver_{sql::mysql::get_driver_instance()},
-      connection_{driver_->connect(url_, user_, pass_)},
-      statement_{connection_->createStatement()}
+    : connection_{new pqxx::connection{
+          FillOptions(url, user, pass, database).c_str()}},
+      transaction_{new pqxx::work{*connection_}} {}
 
-{
-  connection_->setSchema(database_);
-}
-
-bool DataBase::IsValid() const { return connection_ && connection_->isValid(); }
-
-void DataBase::Close() const {
-  if (connection_) {
-    connection_->close();
-  }
-}
+DataBase::~DataBase() { transaction_->commit(); }
 
 void DataBase::Connect(std::string_view url, std::string_view user,
                        std::string_view pass, std::string_view database) {
-  Close();
-  url_ = url;
-  user_ = user;
-  pass_ = pass;
-  database_ = database;
-  driver_ = sql::mysql::get_driver_instance();
-  connection_ =
-      std::unique_ptr<sql::Connection>{driver_->connect(url_, user_, pass_)};
-  statement_ = std::unique_ptr<sql::Statement>{connection_->createStatement()};
-  connection_->setSchema(database_);
+  connection_ = std::make_unique<pqxx::connection>(
+      FillOptions(url, user, pass, database).c_str());
+  transaction_ = std::make_unique<pqxx::work>(*connection_);
 }
 
-bool DataBase::Reconnect() const { return connection_->reconnect(); }
-
-std::unique_ptr<sql::PreparedStatement> DataBase::PreparedStatement(
-    const std::string& statement) const {
-  return std::unique_ptr<sql::PreparedStatement>{
-      connection_->prepareStatement(statement)};
+void DataBase::Commit() {
+  transaction_->commit();
 }
 
-std::unique_ptr<sql::ResultSet> DataBase::ExecuteQuery(
-    const std::string& query) const {
-  return std::unique_ptr<sql::ResultSet>{statement_->executeQuery(query)};
+pqxx::result DataBase::Execute(pqxx::zview query) {
+  return transaction_->exec0(query);
 }
 
-bool DataBase::Execute(const std::string& query) const {
-  return statement_->execute(query);
-}
+pqxx::result DataBase::ExecuteQuery(std::string_view query) {
+  return transaction_->exec(query);
+};
 
 }  // namespace audit

@@ -3,9 +3,11 @@
 #include <arpa/inet.h>
 #include <grp.h>
 #include <ifaddrs.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <pwd.h>
 
+#include <array>
 #include <climits>
 #include <fstream>
 #include <random>
@@ -46,22 +48,41 @@ int NumberOfSetBits(in_addr_t i) {
   return static_cast<int>(i >> 24);
 }
 
+constexpr std::array kNibbleLookup{0, 1, 1, 2, 1, 2, 2, 3,
+                                   1, 2, 2, 3, 2, 3, 3, 4};
+
+int NumberOfSetBits(const std::uint8_t ip[16]) {
+  int count{0};
+  for (int i{0}; i < 16; ++i) {
+    count += kNibbleLookup[ip[i] & 0x0F] + kNibbleLookup[ip[i] >> 4];
+  }
+  return count;
+}
+
 std::vector<HostIP> GetHostIPs() {
   std::vector<HostIP> ifas_info{};
   struct ifaddrs *ifap, *ifa;
   getifaddrs(&ifap);
-  constexpr std::uint32_t localhost{0x7F};
-  constexpr std::string::size_type size{16};
   for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-    if (ifa->ifa_addr && ifa->ifa_netmask && ifa->ifa_name &&
-        ifa->ifa_addr->sa_family == AF_INET) {
+    if (!ifa->ifa_addr || !ifa->ifa_netmask || !ifa->ifa_name) continue;
+    if (ifa->ifa_flags & IFF_LOOPBACK) continue;
+    if (ifa->ifa_addr->sa_family == AF_INET) {
+      constexpr std::string::size_type size{16};
       auto sockaddr{reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)};
       auto ip{sockaddr->sin_addr};
-      if ((ip.s_addr & localhost) == localhost) continue;
       sockaddr = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_netmask);
       auto netmask{NumberOfSetBits(sockaddr->sin_addr.s_addr)};
       HostIP info{std::string(size, '\0'), netmask, ifa->ifa_name};
       inet_ntop(AF_INET, &ip, info.ip.data(), size);
+      ifas_info.push_back(info);
+    } else {
+      constexpr std::string::size_type size{40};
+      auto sockaddr{reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)};
+      auto ip{sockaddr->sin6_addr};
+      sockaddr = reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_netmask);
+      auto netmask{NumberOfSetBits(sockaddr->sin6_addr.s6_addr)};
+      HostIP info{std::string(size, '\0'), netmask, ifa->ifa_name};
+      inet_ntop(AF_INET6, ip.s6_addr, info.ip.data(), size);
       ifas_info.push_back(info);
     }
   }
@@ -404,4 +425,4 @@ void AuditDataBase::AddTcp(std::string_view operation,
   Commit();
 }
 
-}  // namespace logging
+}  // namespace logging_audit

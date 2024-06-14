@@ -6,11 +6,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(BPF_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/logging")
-set(BPFTOOL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/bpftool/src")
-set(BPFTOOL "${BPFTOOL_SOURCE_DIR}/bpftool")
 set(NAME logging)
+set(BPF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/logging)
+set(BPFTOOL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bpftool/src)
+set(BPFTOOL ${BPFTOOL_SOURCE_DIR}/bpftool)
 
+set(INCLUDE ${CMAKE_CURRENT_SOURCE_DIR})
+set(LIB pqxx ${BPFTOOL_SOURCE_DIR}/libbpf/libbpf.a elf z)
+set(LIBPQXX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libpqxx)
+set(LIBPQXX_INCLUDE ${LIBPQXX_DIR}/include)
+set(INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} ${LIBPQXX_INCLUDE})
 set(SRC
   logging/main.cpp
   logging/database.cpp
@@ -18,22 +23,33 @@ set(SRC
   logging/audit_database.cpp
 )
 
-set(INCLUDE ${CMAKE_CURRENT_SOURCE_DIR})
-set(LIB pqxx bpf)
-set(LIBPQXX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libpqxx)
-set(LIBPQXX_INCLUDE ${LIBPQXX_DIR}/include)
-set(INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} ${LIBPQXX_INCLUDE})
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
+  set(ARCH "x86")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+  set(ARCH "arm")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+  set(ARCH "arm64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64le")
+  set(ARCH "powerpc")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "mips")
+  set(ARCH "mips")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "riscv64")
+  set(ARCH "riscv")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "loongarch64")
+  set(ARCH "loongarch")
+endif()
+
 
 add_custom_target(bpftool
-  ALL COMMAND make -C "${BPFTOOL_SOURCE_DIR}"
+  ALL COMMAND make -C ${BPFTOOL_SOURCE_DIR}
 )
 
 add_custom_command(
   OUTPUT skel
-  COMMAND clang "${BPF_SOURCE_DIR}/${NAME}.bpf.c" -c -g -O2 -target bpf
-          -D__TARGET_ARCH_x86 -o "${NAME}.bpf.o"
-  COMMAND "${BPFTOOL}" gen skeleton "${NAME}.bpf.o" >
-          "${BPF_SOURCE_DIR}/${NAME}.skel.h"
+  COMMAND clang ${BPF_SOURCE_DIR}/${NAME}.bpf.c -c -g -O2 -target bpf
+          -D__TARGET_ARCH_${ARCH} -o ${NAME}.bpf.o
+  COMMAND ${BPFTOOL} gen skeleton ${NAME}.bpf.o >
+          ${BPF_SOURCE_DIR}/${NAME}.skel.h
 )
 
 add_subdirectory(${LIBPQXX_DIR})

@@ -55,6 +55,7 @@ add_custom_command(
 add_subdirectory(${LIBPQXX_DIR})
 add_executable(logging ${SRC} skel)
 target_include_directories(logging SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# target_link_libraries(logging PRIVATE -static-libgcc -static-libstdc++ ${LIB})
 target_link_libraries(logging PRIVATE ${LIB})
 target_compile_options(logging
   PRIVATE

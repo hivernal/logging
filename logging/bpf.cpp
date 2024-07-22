@@ -21,6 +21,7 @@ const char* kUnlockMemoryError{"Failed to unlock memory limit"};
 const char* kOpenSkeletonError{"Failed to open BPF skeleton"};
 const char* kLoadSkeletonError{"Failed to load and verify BPF skeleton"};
 const char* kAttachSkeletonError{"Failed to attach BPF skeleton"};
+const char* kPollBufferError{"Failed to poll ring buffer"};
 
 Bpf& Bpf::Instance() {
   if (instance_) {
@@ -125,13 +126,15 @@ Bpf::~Bpf() {
 
 void Bpf::SigHandle([[maybe_unused]] int sig) { run_ = false; }
 
-int Bpf::Poll(int time_nsec) {
-  int err = ring_buffer__poll(setuid_rb_, time_nsec);
-  err = ring_buffer__poll(execve_rb_, time_nsec);
-  err = ring_buffer__poll(exit_rb_, time_nsec);
-  err = ring_buffer__poll(tcp_rb_, time_nsec);
-  err = ring_buffer__poll(file_rb_, time_nsec);
-  return err;
+void Bpf::Poll(int time_nsec) {
+  int err{ring_buffer__poll(setuid_rb_, time_nsec) |
+          ring_buffer__poll(execve_rb_, time_nsec) |
+          ring_buffer__poll(exit_rb_, time_nsec) |
+          ring_buffer__poll(tcp_rb_, time_nsec) |
+          ring_buffer__poll(file_rb_, time_nsec)};
+  if (err < 0) {
+    throw std::runtime_error(kPollBufferError);
+  }
 }
 
 bool Bpf::Run() { return run_; }

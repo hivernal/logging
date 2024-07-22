@@ -69,22 +69,13 @@ int main(int argc, char* argv[]) try {
   Args args{argc, argv};
   // audit::Bpf bpf{args.Url(), args.User(), args.Pass(), args.Database()};
   auto& bpf{logging_audit::Bpf::Instance(args.Url(), args.User(), args.Pass(),
-                                 args.Database())};
+                                         args.Database())};
   bpf.SetFileIncludePaths(args.FileIncludePaths());
   bpf.SetFileExcludePaths(args.FileExcludePaths());
-  int err{0};
   while (bpf.Run()) {
-    err = bpf.Poll(100);
-    if (err == -EINTR) {
-      err = 0;
-      break;
-    }
-    if (err < 0) {
-      std::cout << "Error polling perf buffer: " << err << '\n';
-      break;
-    }
+    bpf.Poll(100);
   }
-  return err;
+  return 0;
 } catch (const std::exception& e) {
   std::cerr << e.what() << '\n';
   return 0;

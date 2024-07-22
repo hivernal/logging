@@ -21,7 +21,7 @@ class Bpf {
   Bpf& operator=(const Bpf&) = delete;
   Bpf(Bpf&&) = delete;
   Bpf& operator=(Bpf&&) = delete;
-  int Poll(int time_nsec);
+  void Poll(int time_nsec);
   bool Run();
   void SetFileIncludePaths(std::vector<std::string>&& files_include);
   void SetFileExcludePaths(std::vector<std::string>&& files_exclude);
